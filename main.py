@@ -1,16 +1,15 @@
 # ASL Finger Spelling Practice
 
 import random as r
-import sys, time
+import os, sys, pandas
 
 from PyQt6.QtWidgets import (
-	QApplication, QMainWindow, QWidget, QPushButton, QSlider, QLabel, QMenuBar, QToolBar, QSpacerItem, QCheckBox,
+	QApplication, QMainWindow, QWidget, QPushButton, QSlider, QLabel, QMenuBar, QMenu, QToolBar, QSpacerItem, QCheckBox,
 	QProgressBar, QLineEdit, QVBoxLayout, QHBoxLayout, QGridLayout, QMdiArea, QGraphicsScene, QGraphicsView
 )
 from PyQt6 import QtGui, QtCore
 from PyQt6.QtCore import (Qt, QObject, QUrl, QThread, pyqtSignal)
 from PyQt6.QtGui import (QIcon, QFont, QGuiApplication, QColor)
-
 
 class Window(QMainWindow):
 
@@ -18,21 +17,26 @@ class Window(QMainWindow):
 		super().__init__()
 		self.setWindowTitle("ASL Practice")
 		# Set window Icon (Currently placeholder)
-		self.setWindowIcon(QIcon("icon.jpeg"))
+		self.setWindowIcon(QIcon("icons\icon.jpeg"))
 		self.setContentsMargins(5, 5, 5, 5)
-		self.resize(500,500)
-
-		# Vars at init
-		self.playPauseBttnState = False
+		self.resize(750,500)
 
 		# Load data (move later)
 		lettersDict = {1:"A", 2:"B", 3:"C", 4:"D", 5:"E", 6:"F", 7:"G", 8:"H", 9:"I", 10:"J", 11:"K", 12:"L", 13:"M", 14:"N", 
 		   			15:"O", 16:"P", 17:"Q", 18:"R", 19:"S", 20:"T", 21:"U", 22:"V", 23:"W", 24:"X", 25:"Y", 26:"Z"}
 		self.R = Randomizer(lettersDict)
-
+		
+		# Menu Bar
 		appMenu = QMenuBar()
-		appMenu.addMenu("File")
-		appMenu.addMenu("Edit")
+		fileMenuItem = QMenu("&File", self)
+		appMenu.addMenu(fileMenuItem)
+
+		fileMenuItem.addAction("&Load")
+
+		#fileMenuItem.is
+		
+		editMenuItem = QMenu("&Edit",self)
+		appMenu.addMenu(editMenuItem)
 		self.setMenuBar(appMenu)
 		
 		self.updateBtn = QPushButton("Update")
@@ -44,13 +48,15 @@ class Window(QMainWindow):
 
 	def SettingsToolBar(self):
 
-		settingsToolbar = QToolBar()
-		self.addToolBar(settingsToolbar)
+		#settingsToolbar = QToolBar()
 
 		# Create settings toolbar layout
 		settingsToolbarWidget = QWidget()
 		settingsToolbarLayout = QHBoxLayout()
 		settingsToolbarWidget.setLayout(settingsToolbarLayout)
+		
+		# Add spacing
+		settingsToolbarLayout.addSpacing(50)
 		
 		# Delay input label
 		delayInputLabel = QLabel("Time between letters:")
@@ -59,17 +65,25 @@ class Window(QMainWindow):
 
 		# Delay input field
 		self.delayInput = QSlider(Qt.Orientation.Horizontal)
-		#self.delayInput.TickPosition(self.delayInput.TicksBothSides)
-		#self.delayInput.setText("1.75")
-		self.delayInput.setMaximumWidth(50)
+		self.delayInput.setRange(1, 5)
+		self.delayInput.setValue(2)
+		self.delayInput.setSingleStep(1)
+		self.delayInput.setMaximumWidth(75)
+		self.delayInput.setTickPosition(QSlider.TickPosition.TicksBelow)
+		self.delayInput.setTickInterval(1)
 
 		settingsToolbarLayout.addWidget(self.delayInput, Qt.AlignmentFlag.AlignLeft)
 
-		# Define QTimer using delay input field
-		timerInterval = 2
-		#float(self.delayInput.text())
-		print(timerInterval)
-		self.timer = QtCore.QTimer(self, interval=timerInterval * 25, timeout=self.Run)
+		self.delayInput.valueChanged.connect(self.DelayUpdated)
+
+		# Defines timer ON RUNTIME, updated in self.DelayUpdated()
+		# Interval in milliseconds
+		self.timer = QtCore.QTimer(self, interval=self.delayInput.value() * 5, timeout=self.Run)
+
+		# Add delay input field value indicator
+		self.delayInputVal = QLabel(str(self.delayInput.value()*0.25))
+		self.delayInputVal.setMaximumWidth(25)
+		settingsToolbarLayout.addWidget(self.delayInputVal)
 
 		# Add spacing
 		settingsToolbarLayout.addSpacing(10)
@@ -89,30 +103,79 @@ class Window(QMainWindow):
 
 		# Play button
 		self.playButton = QPushButton()
-		self.playButton.setIcon(QIcon("Icons\play-icon.png"))
+		self.playButton.setIcon(QIcon("icons\play-icon.png"))
+		self.playButton.setMaximumWidth(50)
 		settingsToolbarLayout.addWidget(self.playButton)
 
 		# Pause button
 		self.pauseButton = QPushButton()
-		self.pauseButton.setIcon(QIcon("Icons\pause-icon.png"))
+		self.pauseButton.setIcon(QIcon("icons\pause-icon.png"))
+		self.pauseButton.setMaximumWidth(50)
 		settingsToolbarLayout.addWidget(self.pauseButton)
 
 
-		settingsToolbar.addWidget(settingsToolbarWidget)
+		#settingsToolbar.addWidget(settingsToolbarWidget)
+
+		return settingsToolbarWidget
 
 		
 	def Home(self):
-		self.SettingsToolBar()
+		#toolbar = self.SettingsToolBar()
+		#self.addToolBar(toolbar)
 
-		createCentralWidget = QWidget()
-		centralWidgetLayout = QVBoxLayout()
-		createCentralWidget.setLayout(centralWidgetLayout)
+		central_widget = QWidget()
+		central_widget_layout = QHBoxLayout()
+		central_widget.setLayout(central_widget_layout)
+
+		# Left Column
+		self.left_column_widget = QWidget()
+		left_column_layout = QGridLayout()
+		self.left_column_widget.setLayout(left_column_layout)
 		
+		self.leftColumnMinWidth = 35
+		self.leftColumnMaxWidth = 100
+
+		central_widget_layout.addWidget(self.left_column_widget)
+
+		self.left_column_widget.setFixedWidth(self.leftColumnMinWidth)
+
+		#self.left_column_widget.setStyleSheet(
+			#"background:#6c757d;"
+					#)
+
+		#left_column_layout.addWidget(QWidget(), 0, 0, Qt.AlignmentFlag.AlignTop)
+
+		# Load file menu toggle
+		self.fileMenuToggleState = False
+		self.fileMenuToggle = QPushButton("T")
+		self.fileMenuToggle.setMaximumWidth(15)
+		self.fileMenuToggle.clicked.connect(self.File_Menu_View_Toggle)
+		left_column_layout.addWidget(self.fileMenuToggle, 1, 0, Qt.AlignmentFlag.AlignTop)
+
+		#self.load_file_button = QPushButton("Load File")
+		#left_column_layout.addWidget(self.load_file_button)
+
+		#self.load_file_button.clicked.connect()
+
+		# ******************************************
+
+		# Right Column
+		right_column_widget = QWidget()
+		right_column_layout = QVBoxLayout()
+		right_column_widget.setLayout(right_column_layout)
+		
+		right_column_widget.setMinimumWidth(500)
+
+		central_widget_layout.addWidget(right_column_widget)
+
+		# Add option bar
+		right_column_layout.addWidget(self.SettingsToolBar())
+
 		# Creates the GraphicDisplay widget
 		self.TextGraphicDisplay()
 
 		# Adds the GraphicDisplay widget to central widget layout
-		centralWidgetLayout.addWidget(self.GraphicsView)
+		right_column_layout.addWidget(self.GraphicsView)
 		
 		# Progress Bar
 		self.progBarVal = 0
@@ -121,17 +184,31 @@ class Window(QMainWindow):
 		self.progressBar = QProgressBar()
 		self.progressBar.setFixedHeight(20)
 		self.progressBar.setMaximum(self.progBarMax)
-		centralWidgetLayout.addWidget(self.progressBar) 
+		right_column_layout.addWidget(self.progressBar) 
 		
-		
-		self.setCentralWidget(createCentralWidget)
+		self.setCentralWidget(central_widget)
 
 		self.playButton.clicked.connect(self.playButtonPressed)
 		self.pauseButton.clicked.connect(self.pauseButtonPressed)
-		#self.playPauseButton.clicked.connect(self.Run)
 
-		print(self.playPauseBttnState)
+	def FilePreviewWindow(self):
+		file_list = QWidget()
+		fl_layout = QGridLayout()
+		file_list.setLayout(fl_layout)
 
+		file_option_1 = QPushButton()
+		file_option_2 = QPushButton()
+		file_option_3 = QPushButton()
+		file_option_4 = QPushButton()
+		file_option_5 = QPushButton()
+		file_option_6 = QPushButton()
+
+		for file in range(len(os.listdir('.\data'))):
+			print(file)
+
+
+
+	# Button Functions
 	@QtCore.pyqtSlot()
 	def playButtonPressed(self):
 		#self.timer = 0
@@ -141,6 +218,23 @@ class Window(QMainWindow):
 	@QtCore.pyqtSlot()
 	def pauseButtonPressed(self):
 		self.timer.stop()
+
+	def Home_To_File_Preview_Window(self):
+		#self.setcentralWidget()
+		pass
+
+	def File_Menu_View_Toggle(self):
+		if self.fileMenuToggleState == False:
+			self.fileMenuToggleState = True
+			self.left_column_widget.setFixedWidth(self.leftColumnMaxWidth)
+		
+		elif self.fileMenuToggleState == True:
+			self.fileMenuToggleState = False
+			self.left_column_widget.setFixedWidth(self.leftColumnMinWidth)
+
+		
+
+
 
 	def Run(self):
 		#print(self.delayInput.text())
@@ -152,7 +246,11 @@ class Window(QMainWindow):
 			self.progBarVal = 0
 
 			self.UpdateGDText()
-		
+			
+	def DelayUpdated(self):
+		self.delayInputVal.setText(str(self.delayInput.value()*0.25))
+		# Interval in milliseconds
+		self.timer.setInterval(self.delayInput.value() * 5)
 		
 	def TextGraphicDisplay(self):
 		self.scene = QGraphicsScene()
@@ -163,9 +261,9 @@ class Window(QMainWindow):
 		displayFont = QFont("Atkinson Hyperlegible", 150)
 		displayFont.setBold(True)
 		self.textObject = self.scene.addSimpleText(text, displayFont)
-		#addText(text, displayFont)
 
 		self.GraphicsView = QGraphicsView(self.scene, self)
+		#self.GraphicsView.
 		#GraphicsView.setGeometry(0,0,600,500)
 
 	def UpdateGDText(self, displayString="Error: could not load display element"):
@@ -177,8 +275,6 @@ class Window(QMainWindow):
 class Randomizer():
 
 	def __init__(self, items) -> None:
-		self.delay = 1.75
-		# Delay in seconds
 		self.items = items
 		self._testStr = "Test string"
 
@@ -187,23 +283,32 @@ class Randomizer():
 		a = self.items[itemsKey]
 			
 		return a
+	
+class Data():
+	lettersDict = {1:"A", 2:"B", 3:"C", 4:"D", 5:"E", 6:"F", 7:"G", 8:"H", 9:"I", 10:"J", 11:"K", 12:"L", 13:"M", 14:"N", 
+		   			15:"O", 16:"P", 17:"Q", 18:"R", 19:"S", 20:"T", 21:"U", 22:"V", 23:"W", 24:"X", 25:"Y", 26:"Z"}
+	
+	def CSV_Handler():
+		file = r'.\data\alphabet.csv'
+
+		csv_ds = pandas.read_csv(file, header=0)
+		print(csv_ds)
 		
-	def gdUpdateTextObject(self, window):
-		text = self.randomStr()
-
-		window.scene.clear()
-
-		displayFont = QFont("Atkinson Hyperlegible", 60)
-		displayFont.setBold(True)
-		textObject = window.scene.addText(text, displayFont)
+		test = dict(csv_ds)
+		print(test)
 
 
 
-if __name__ == "__main__":
+def main() -> None :
 	# Start PyQt application
+	#print(os.listdir('.\data'))
 	app = QApplication(sys.argv)
 	
 	window = Window()
 	window.show()
 
+	Data.CSV_Handler()
+
 	sys.exit(app.exec())
+
+main()
