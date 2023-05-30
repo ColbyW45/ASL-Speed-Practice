@@ -26,9 +26,10 @@ class Window(QMainWindow):
 		fileMenuItem = QMenu("&File", self)
 		appMenu.addMenu(fileMenuItem)
 
-		fileMenuItem.addAction("&Load")
-
-		#fileMenuItem.is
+		load_option = fileMenuItem.addAction("&Load")
+		load_option.triggered.connect(self.CSV_file_select)
+		load_option.triggered.connect(self.text_practice_mode)
+		
 		
 		editMenuItem = QMenu("&Edit",self)
 		appMenu.addMenu(editMenuItem)
@@ -115,27 +116,43 @@ class Window(QMainWindow):
 
 	def Home(self):
 		central_widget = QWidget()
-		central_widget_layout = QHBoxLayout()
+		central_widget_layout = QVBoxLayout()
 		central_widget.setLayout(central_widget_layout)
 		self.setCentralWidget(central_widget)
 
 		self.textPracticeMode = QPushButton("CSV")
 		central_widget_layout.addWidget(self.textPracticeMode)
 
+		UI_font = QFont("Atkinson Hyperlegible", 18)
+		UI_font.setBold(True)
+
+		tempStr = "Avalible Files:\n\n"
+		for file in os.listdir('.\data'):
+			tempStr += file
+			tempStr += "\n"
+
+		self.fileList = QLabel(tempStr)
+		self.fileList.setFont(UI_font)
+		central_widget_layout.addWidget(self.fileList)
+
 		self.textPracticeMode.clicked.connect(self.CSV_file_select)
 		self.textPracticeMode.clicked.connect(self.text_practice_mode)
 
 	def CSV_file_select(self):
 		fileDialogReturn = QFileDialog.getOpenFileName(self, 'Open file', 
-         '.\data',"CSV files (*.csv)")
+		 '.\data',"CSV files (*.csv)")
 		# Returns a tuple object
 		fileName = fileDialogReturn[0]
-    	
+		
 		#print(type(fileDialogReturn), fileDialogReturn)
 		#print(fileName)
 
-		self.practceSetDict = Data.CSV_Handler(fileName)
-		self.R = Randomizer(self.practceSetDict)
+		try:
+			self.practceSetDict = Data.CSV_Handler(fileName)
+			self.R = Randomizer(self.practceSetDict)
+			
+		except:
+			self.R = Randomizer(Data.placeholder_dict())
 	
 	def text_practice_mode(self):
 
@@ -233,7 +250,6 @@ class Window(QMainWindow):
 			print(file)
 
 
-
 	# Button Functions
 	@QtCore.pyqtSlot()
 	def playButtonPressed(self):
@@ -299,15 +315,54 @@ class Randomizer():
 	def __init__(self, items) -> None:
 		self.items = items
 		self._testStr = "Test string"
+		#self.lastPicked = int()
+		self.toBePicked = []
+		self.dictKeys = list(items.keys())
+		self.datasetLength = len(self.dictKeys)-1
 
 	def randomStr(self):			
-		itemsKey = r.randint(1,len(self.items)-1)
+		#itemsKey = r.randint(1,len(self.items)-1)
 		# Ignores Header by starting at 1
+
+		# Populate toBePicked list
+		for key in self.dictKeys:
+			self.toBePicked.append(key)
+
+		itemsKey = self.pick()
 		a = self.items[itemsKey]
 		
 		return a
 	
+	def pick(self) -> int:
+		pickedVal = r.randint(0, self.datasetLength)
+
+		i = r.choices([0, 1], weights = [20, 1])
+		# i is a list with one int
+
+		if i[0] == 0:
+			try:
+				self.toBePicked.remove(pickedVal)
+
+			except:
+				while self.toBePicked.count(pickedVal) == 0:
+					pickedVal = r.randint(0, self.datasetLength)
+
+				try:
+					self.toBePicked.remove(pickedVal)
+
+				except:
+					pass
+
+		return pickedVal
+		
+	
 class Data():
+
+	def placeholder_dict():
+		pDict = {0:""}
+		# This is essentialy just to keep the program from crashing if a csv isn't picked at file pick screen
+		
+		return pDict
 	
 	def CSV_Handler(file) -> dict:
 		#file = r'.\data\alphabet.csv'
@@ -315,7 +370,7 @@ class Data():
 		output = {}
 
 		csv_ds = pandas.read_csv(file, header=0)
-		print(csv_ds)
+		#print(csv_ds)
 		
 		for row in range(len(csv_ds)):
 			row_contents = csv_ds.loc[row]
@@ -323,7 +378,7 @@ class Data():
 
 			output[row] = row_contents[0]
 
-		print(output)
+		#print(output)
 		return output
 
 
@@ -332,7 +387,7 @@ def main() -> None :
 	# Start PyQt application
 	#print(os.listdir('.\data'))
 	app = QApplication(sys.argv)
-	
+
 	window = Window()
 	window.show()
 
